@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COLOR_RED=''
+COLOR_GREEN=''
+COLOR_WHITE=''
+
+STYLE_BOLD=''
+STYLE_DIM=''
+STYLE_RESET=''
+
+# Enable colors for terminal output.
+if [[ -t 1 ]]; then
+    COLOR_RED='\033[31m'
+    COLOR_GREEN='\033[32m'
+    COLOR_WHITE='\033[97m'
+
+    STYLE_BOLD='\033[1m'
+    STYLE_DIM='\033[2m'
+    STYLE_RESET='\033[0m'
+fi
+
+INSTALL_URI="https://raw.githubusercontent.com/nasserkari/scrub/main/scrub"
+INSTALL_DIR="$HOME/.scrub"
+BIN_DIR="$INSTALL_DIR/bin"
+EXE="$BIN_DIR/scrub"
+
+print_error() {
+    echo -e "${COLOR_RED}error:${STYLE_RESET} $*" >&2
+    exit 1
+}
+
+print_info() {
+    echo -e "${STYLE_DIM}$*${STYLE_RESET}"
+}
+
+print_bold() {
+    echo -e "${STYLE_BOLD}$*${STYLE_RESET}"
+}
+
+print_success() {
+    echo -e "${COLOR_GREEN}$*${STYLE_RESET}"
+}
+
+# Detect the user's login shell.
+case "$(basename "${SHELL:-bash}")" in
+    bash)
+        CONFIG="$HOME/.bashrc"
+        LINE="export PATH=\"$BIN_DIR:\$PATH\""
+        ;;
+    zsh)
+        CONFIG="$HOME/.zshrc"
+        LINE="export PATH=\"$BIN_DIR:\$PATH\""
+        ;;
+    fish)
+        CONFIG="$HOME/.config/fish/config.fish"
+        LINE="fish_add_path \"$BIN_DIR\""
+        ;;
+    *)
+        print_error "Unsupported shell. Add $BIN_DIR to PATH manually"
+        ;;
+esac
+
+# Create the install directory.
+print_info "Installing scrub..."
+
+if ! mkdir -p "$BIN_DIR"; then
+    print_error "Cannot create install directory"
+fi
+
+# Download the executable.
+if ! curl -fsSL "$INSTALL_URI" -o "$EXE"; then
+    rm -f "$EXE"
+    print_error "Download failed"
+fi
+
+# Make it executable.
+if ! chmod +x "$EXE"; then
+    print_error "Cannot make scrub executable"
+fi
+
+# Configure PATH.
+print_info "Updating PATH..."
+
+if ! mkdir -p "$(dirname "$CONFIG")"; then
+    print_error "Cannot create shell config directory"
+fi
+
+if ! touch "$CONFIG"; then
+    print_error "Cannot access shell config"
+fi
+
+if ! grep -Fq -- "$BIN_DIR" "$CONFIG"; then
+    {
+        echo
+        echo "# scrub"
+        echo "$LINE"
+    } >> "$CONFIG" || print_error "Cannot update shell config"
+fi
+
+echo
+print_success "scrub installed! Happy cleaning!"
+echo
+echo "Restart your terminal, then run:"
+print_bold "  scrub --clean"
