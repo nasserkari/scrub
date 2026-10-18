@@ -1,0 +1,32 @@
+# Temporary files
+*.bak
+*.orig
+*.tmp
+*.temp
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+
+# Test and coverage output
+/coverage/
+*.tap
+
+# Cache
+.cache/
+.cache-*/
+
+# Editor and IDE settings
+.vscode/
+.idea/
+.zed/
+
+# Operating system files
+.DS_Store
+Thumbs.db
