@@ -1,0 +1,12 @@
+# Automatically normalize text files
+* text=auto
+
+# Always use LF for shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+*.fish text eol=lf
+
+# Extensionless scripts in the repository root
+/install text eol=lf
+/scrub text eol=lf
