@@ -11,13 +11,13 @@ STYLE_RESET=''
 
 # Enable colors for terminal output.
 if [[ -t 1 ]]; then
-    COLOR_RED='\033[31m'
-    COLOR_GREEN='\033[32m'
-    COLOR_WHITE='\033[97m'
+    COLOR_RED=$'\033[31m'
+    COLOR_GREEN=$'\033[32m'
+    COLOR_WHITE=$'\033[97m'
 
-    STYLE_BOLD='\033[1m'
-    STYLE_DIM='\033[2m'
-    STYLE_RESET='\033[0m'
+    STYLE_BOLD=$'\033[1m'
+    STYLE_DIM=$'\033[2m'
+    STYLE_RESET=$'\033[0m'
 fi
 
 INSTALL_URI="https://raw.githubusercontent.com/nasserkari/scrub/main/scrub"
@@ -44,21 +44,21 @@ print_success() {
 
 # Detect the user's login shell.
 case "$(basename "${SHELL:-bash}")" in
-    bash)
-        CONFIG="$HOME/.bashrc"
-        LINE="export PATH=\"$BIN_DIR:\$PATH\""
-        ;;
-    zsh)
-        CONFIG="$HOME/.zshrc"
-        LINE="export PATH=\"$BIN_DIR:\$PATH\""
-        ;;
-    fish)
-        CONFIG="$HOME/.config/fish/config.fish"
-        LINE="fish_add_path \"$BIN_DIR\""
-        ;;
-    *)
-        print_error "Unsupported shell. Add $BIN_DIR to PATH manually"
-        ;;
+bash)
+    CONFIG="$HOME/.bashrc"
+    LINE="export PATH=\"$BIN_DIR:\$PATH\""
+    ;;
+zsh)
+    CONFIG="$HOME/.zshrc"
+    LINE="export PATH=\"$BIN_DIR:\$PATH\""
+    ;;
+fish)
+    CONFIG="$HOME/.config/fish/config.fish"
+    LINE="fish_add_path \"$BIN_DIR\""
+    ;;
+*)
+    print_error "Unsupported shell. Add $BIN_DIR to PATH manually"
+    ;;
 esac
 
 # Create the install directory.
@@ -95,7 +95,7 @@ if ! grep -Fq -- "$BIN_DIR" "$CONFIG"; then
         echo
         echo "# scrub"
         echo "$LINE"
-    } >> "$CONFIG" || print_error "Cannot update shell config"
+    } >>"$CONFIG" || print_error "Cannot update shell config"
 fi
 
 echo

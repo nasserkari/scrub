@@ -12,14 +12,14 @@ STYLE_RESET=''
 
 # Enable colors only when output is a terminal
 if [[ -t 1 ]]; then
-    COLOR_RED='\033[31m'
-    COLOR_GREEN='\033[32m'
-    COLOR_WHITE='\033[39m'
+    COLOR_RED=$'\033[31m'
+    COLOR_GREEN=$'\033[32m'
+    COLOR_WHITE=$'\033[39m'
 
-    STYLE_BOLD='\033[1m'
-    STYLE_DIM='\033[2m'
-    STYLE_UNDERLINE='\033[4m'
-    STYLE_RESET='\033[0m'
+    STYLE_BOLD=$'\033[1m'
+    STYLE_DIM=$'\033[2m'
+    STYLE_UNDERLINE=$'\033[4m'
+    STYLE_RESET=$'\033[0m'
 fi
 
 print_line() {
@@ -61,12 +61,12 @@ CACHE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}
 DATA_DIR=${XDG_DATA_HOME:-$HOME/.local/share}
 
 has() {
-    command -v "$1" > /dev/null 2>&1
+    command -v "$1" >/dev/null 2>&1
 }
 
 # a failing step must never stop the rest of the cleanup
 run_quiet() {
-    "$@" > /dev/null 2>&1 || true
+    "$@" >/dev/null 2>&1 || true
 }
 
 # skip sudo when already running as root
@@ -94,7 +94,7 @@ require_sudo() {
 free_kb() {
     local kb
 
-    if kb=$(df -Pk / 2> /dev/null | awk 'NR == 2 {print $4}'); then
+    if kb=$(df -Pk / 2>/dev/null | awk 'NR == 2 {print $4}'); then
         case $kb in
         '' | *[!0-9]*) echo 0 ;;
         *) echo "$kb" ;;
@@ -128,7 +128,7 @@ clean_browser() {
     if ! has pgrep; then
         return 0
     fi
-    if pgrep -x "$process" > /dev/null 2>&1; then
+    if pgrep -x "$process" >/dev/null 2>&1; then
         return 0
     fi
 
@@ -266,7 +266,7 @@ remove_rc_entries() {
     fi
 
     # grep returns 1 when no lines are left, which is fine, 2 or more is a real error
-    if grep -vF -e "# scrub" -e "$INSTALL_DIR" "$file" > "$tmp"; then
+    if grep -vF -e "# scrub" -e "$INSTALL_DIR" "$file" >"$tmp"; then
         status=0
     else
         status=$?
@@ -278,7 +278,7 @@ remove_rc_entries() {
     fi
 
     # cat keeps the original file permissions and symlinks intact
-    if ! cat "$tmp" > "$file"; then
+    if ! cat "$tmp" >"$file"; then
         rm -f "$tmp"
         return 1
     fi
@@ -338,4 +338,5 @@ main() {
 }
 
 # stop reading the file, --update may replace it
-main "$@"; exit
+main "$@"
+exit
