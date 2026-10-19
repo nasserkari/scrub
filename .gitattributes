@@ -9,4 +9,4 @@
 
 # Extensionless scripts in the repository root
 /install text eol=lf
-/scrub text eol=lf
+/wren text eol=lf

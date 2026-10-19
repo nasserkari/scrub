@@ -1,11 +1,11 @@
 ```text
 
-      ███████╗ ██████╗██████╗ ██╗   ██╗██████╗
-      ██╔════╝██╔════╝██╔══██╗██║   ██║██╔══██╗
-      ███████╗██║     ██████╔╝██║   ██║██████╔╝
-      ╚════██║██║     ██╔══██╗██║   ██║██╔══██╗
-      ███████║╚██████╗██║  ██║╚██████╔╝██████╔╝
-      ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝
+      ██╗    ██╗██████╗ ███████╗███╗   ██╗
+      ██║    ██║██╔══██╗██╔════╝████╗  ██║
+      ██║ █╗ ██║██████╔╝█████╗  ██╔██╗ ██║
+      ██║███╗██║██╔══██╗██╔══╝  ██║╚██╗██║
+      ╚███╔███╔╝██║  ██║███████╗██║ ╚████║
+       ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝
 
 ```
 
@@ -20,13 +20,13 @@ bash, curl, sudo (not needed as root)
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nasserkari/scrub/main/install | bash
+curl -fsSL https://raw.githubusercontent.com/nasserkari/wren/main/install | bash
 ```
 
 To review the script before running it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nasserkari/scrub/main/install -o install
+curl -fsSL https://raw.githubusercontent.com/nasserkari/wren/main/install -o install
 less install
 bash install
 ```
@@ -34,12 +34,12 @@ bash install
 ## Usage
 
 ```bash
-scrub                 # Show available commands
-scrub --clean         # Clean cache, trash, logs, packages and more (see below)
-scrub --update        # Update to the latest version
-scrub --uninstall     # Uninstall scrub
-scrub --version       # Show version (-v)
-scrub --help          # Show help (-h)
+wren                 # Show available commands
+wren --clean         # Clean cache, trash, logs, packages and more (see below)
+wren --update        # Update to the latest version
+wren --uninstall     # Uninstall wren
+wren --version       # Show version (-v)
+wren --help          # Show help (-h)
 ```
 
 ## What it cleans
@@ -63,5 +63,5 @@ apt, dnf, pacman, zypper, apk
 ```text
 Never touches your documents or other personal files.
 Emptying the trash, deleting old logs and removing unused packages
-are permanent, so check that you no longer need them before running scrub --clean.
+are permanent, so check that you no longer need them before running wren --clean.
 ```
