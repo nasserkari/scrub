@@ -1,15 +1,15 @@
 {
-  "name": "scrub",
+  "name": "wren",
   "version": "0.1.0",
   "description": "A shell script to clean your Linux",
   "author": "Nasser Karinganire",
   "license": "MIT",
-  "homepage": "https://github.com/nasserkari/scrub#readme",
+  "homepage": "https://github.com/nasserkari/wren#readme",
   "bugs": {
-    "url": "https://github.com/nasserkari/scrub/issues"
+    "url": "https://github.com/nasserkari/wren/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nasserkari/scrub.git"
+    "url": "git+https://github.com/nasserkari/wren.git"
   }
 }
