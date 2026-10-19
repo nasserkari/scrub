@@ -1,0 +1,341 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COLOR_RED=''
+COLOR_GREEN=''
+COLOR_WHITE=''
+
+STYLE_BOLD=''
+STYLE_DIM=''
+STYLE_UNDERLINE=''
+STYLE_RESET=''
+
+# Enable colors only when output is a terminal
+if [[ -t 1 ]]; then
+    COLOR_RED='\033[31m'
+    COLOR_GREEN='\033[32m'
+    COLOR_WHITE='\033[39m'
+
+    STYLE_BOLD='\033[1m'
+    STYLE_DIM='\033[2m'
+    STYLE_UNDERLINE='\033[4m'
+    STYLE_RESET='\033[0m'
+fi
+
+print_line() {
+    echo -e "${COLOR_WHITE}$*${STYLE_RESET}"
+}
+
+print_error() {
+    echo -e "${COLOR_RED}error${STYLE_RESET}: $*" >&2
+    exit 1
+}
+
+print_info() {
+    echo -e "${STYLE_DIM}${COLOR_WHITE}$*${STYLE_RESET}"
+}
+
+print_success() {
+    echo -e "${COLOR_GREEN}$*${STYLE_RESET}"
+}
+
+print_heading() {
+    echo -e "${STYLE_BOLD}${STYLE_UNDERLINE}$*${STYLE_RESET}"
+}
+
+print_option() {
+    local pad="               "
+    echo -e "  ${STYLE_BOLD}$1${pad:${#1}}${STYLE_RESET}$2"
+}
+
+trap 'print_error "Interrupted"' INT TERM
+
+if [[ -z ${HOME:-} || ! -d $HOME ]]; then
+    print_error "HOME is not set"
+fi
+
+VERSION=0.1.0
+INSTALL_URI=https://github.com/nasserkari/scrub/raw/main/install
+INSTALL_DIR=$HOME/.scrub
+CACHE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}
+DATA_DIR=${XDG_DATA_HOME:-$HOME/.local/share}
+
+has() {
+    command -v "$1" > /dev/null 2>&1
+}
+
+# a failing step must never stop the rest of the cleanup
+run_quiet() {
+    "$@" > /dev/null 2>&1 || true
+}
+
+# skip sudo when already running as root
+as_root() {
+    if [[ $EUID -eq 0 ]]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+require_sudo() {
+    if [[ $EUID -eq 0 ]]; then
+        return 0
+    fi
+    if ! has sudo; then
+        print_error "sudo is required"
+    fi
+    if ! sudo -v; then
+        print_error "sudo authentication failed"
+    fi
+}
+
+# free space on / in KB, 0 if it cannot be read
+free_kb() {
+    local kb
+
+    if kb=$(df -Pk / 2> /dev/null | awk 'NR == 2 {print $4}'); then
+        case $kb in
+        '' | *[!0-9]*) echo 0 ;;
+        *) echo "$kb" ;;
+        esac
+    else
+        echo 0
+    fi
+}
+
+# empties a folder but keeps the folder itself
+clean_dir() {
+    local dir=$1
+
+    # only ever touch paths inside the home folder
+    case $dir in
+    "$HOME"/*) ;;
+    *) return 0 ;;
+    esac
+
+    # symlinks are skipped so nothing outside the folder is deleted
+    if [[ -d $dir && ! -L $dir ]]; then
+        run_quiet find "$dir" -mindepth 1 -delete
+    fi
+}
+
+# a running browser is skipped because it is still using its cache
+clean_browser() {
+    local process=$1 dir
+    shift
+
+    if ! has pgrep; then
+        return 0
+    fi
+    if pgrep -x "$process" > /dev/null 2>&1; then
+        return 0
+    fi
+
+    for dir in "$@"; do
+        clean_dir "$dir"
+    done
+}
+
+# snap keeps old revisions marked as disabled, they are safe to remove
+remove_old_snaps() {
+    local name rev
+
+    snap list --all | awk '/disabled/ {print $1, $3}' | while read -r name rev; do
+        as_root snap remove "$name" --revision="$rev"
+    done
+}
+
+clean() {
+    local before after freed
+
+    require_sudo
+    before=$(free_kb)
+
+    print_info "Cleaning cache"
+    clean_dir "$CACHE_DIR/thumbnails"
+    clean_browser firefox "$CACHE_DIR"/mozilla/firefox/*/cache2
+    clean_browser chrome "$CACHE_DIR/google-chrome/Default/Cache"
+    clean_browser chromium "$CACHE_DIR/chromium/Default/Cache"
+    clean_browser brave "$CACHE_DIR/BraveSoftware/Brave-Browser/Default/Cache"
+    if has npm; then
+        run_quiet npm cache clean --force
+    fi
+    if has yarn; then
+        run_quiet yarn cache clean
+    fi
+    if has pip3; then
+        run_quiet pip3 cache purge
+    elif has pip; then
+        run_quiet pip cache purge
+    fi
+
+    print_info "Emptying trash"
+    clean_dir "$DATA_DIR/Trash/files"
+    clean_dir "$DATA_DIR/Trash/info"
+
+    print_info "Cleaning logs"
+    if has journalctl; then
+        run_quiet as_root journalctl --vacuum-time=14d
+    fi
+
+    print_info "Cleaning packages"
+    if has apt-get; then
+        run_quiet as_root apt-get clean
+        run_quiet as_root apt-get autoremove -y
+    elif has dnf; then
+        run_quiet as_root dnf clean all
+        run_quiet as_root dnf autoremove -y
+    elif has pacman; then
+        run_quiet as_root pacman -Sc --noconfirm
+    elif has zypper; then
+        run_quiet as_root zypper --non-interactive clean --all
+    elif has apk; then
+        run_quiet as_root apk cache clean
+    fi
+    if has flatpak; then
+        run_quiet flatpak uninstall --unused -y
+    fi
+    if has snap; then
+        run_quiet remove_old_snaps
+    fi
+
+    print_info "Trimming disk"
+    if has fstrim; then
+        run_quiet as_root fstrim -av
+    fi
+
+    after=$(free_kb)
+    freed=$(((after - before) / 1024))
+    if ((freed < 0)); then
+        freed=0
+    fi
+
+    print_success "Done! Freed $freed MB"
+}
+
+update() {
+    local tmp first
+
+    if ! has curl; then
+        print_error "curl is required"
+    fi
+    if ! tmp=$(mktemp); then
+        print_error "Update failed"
+    fi
+
+    if ! curl -fsSL --proto '=https' --tlsv1.2 "$INSTALL_URI" -o "$tmp"; then
+        rm -f "$tmp"
+        print_error "Update failed"
+    fi
+
+    # only run the download if it starts with a shebang, so an error page is never executed
+    first=$(head -n 1 "$tmp")
+    case $first in
+    '#!'*) ;;
+    *)
+        rm -f "$tmp"
+        print_error "Update failed"
+        ;;
+    esac
+
+    if bash "$tmp"; then
+        rm -f "$tmp"
+        print_success "Updated"
+    else
+        rm -f "$tmp"
+        print_error "Update failed"
+    fi
+}
+
+# removes scrub lines from a shell config and keeps a .scrub.bak backup
+remove_rc_entries() {
+    local file=$1 tmp status
+
+    if [[ ! -f $file || ! -w $file ]]; then
+        return 0
+    fi
+    if ! grep -qF -e "# scrub" -e "$INSTALL_DIR" "$file"; then
+        return 0
+    fi
+    if ! cp -p "$file" "$file.scrub.bak"; then
+        return 1
+    fi
+    if ! tmp=$(mktemp); then
+        return 1
+    fi
+
+    # grep returns 1 when no lines are left, which is fine, 2 or more is a real error
+    if grep -vF -e "# scrub" -e "$INSTALL_DIR" "$file" > "$tmp"; then
+        status=0
+    else
+        status=$?
+    fi
+
+    if ((status > 1)); then
+        rm -f "$tmp"
+        return 1
+    fi
+
+    # cat keeps the original file permissions and symlinks intact
+    if ! cat "$tmp" > "$file"; then
+        rm -f "$tmp"
+        return 1
+    fi
+
+    rm -f "$tmp"
+}
+
+uninstall() {
+    local config
+
+    # never remove an empty path, the root folder or the home folder
+    case $INSTALL_DIR in
+    '' | / | "$HOME") print_error "Unsafe install path" ;;
+    esac
+
+    for config in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.config/fish/config.fish"; do
+        if ! remove_rc_entries "$config"; then
+            print_error "Failed to update $config"
+        fi
+    done
+
+    if [[ -d $INSTALL_DIR ]]; then
+        if ! rm -rf -- "$INSTALL_DIR"; then
+            print_error "Failed to remove $INSTALL_DIR"
+        fi
+    fi
+
+    print_success "Uninstalled"
+}
+
+version() {
+    print_line "scrub version $VERSION"
+}
+
+usage() {
+    print_line "Simple Linux cleaner"
+    echo
+    echo -e "${STYLE_BOLD}${STYLE_UNDERLINE}Usage:${STYLE_RESET} ${STYLE_BOLD}scrub${STYLE_RESET} <OPTION>"
+    echo
+    print_heading "Options:"
+    print_option "--clean" "Clean cache, trash, logs and packages"
+    print_option "--update" "Update to the latest version"
+    print_option "--uninstall" "Remove scrub"
+    print_option "-v, --version" "Print version"
+    print_option "-h, --help" "Print help"
+}
+
+main() {
+    case ${1:-} in
+    --clean) clean ;;
+    --update) update ;;
+    --uninstall) uninstall ;;
+    --version | -v) version ;;
+    --help | -h | "") usage ;;
+    *) print_error "Unknown option $1, try 'scrub --help'" ;;
+    esac
+}
+
+# stop reading the file, --update may replace it
+main "$@"; exit
